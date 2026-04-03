@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "defaultMode": "allowEdits"
+    "defaultMode": "acceptEdits"
   },
   "mcpServers": {
     "unityMCP": {
