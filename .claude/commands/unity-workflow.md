@@ -69,6 +69,23 @@ Run the `unity-verifier` agent to perform a verify-fix loop:
 3. **Re-verify** if fixes were applied (max 3 iterations)
 4. **Run tests** via MCP if available
 
+### Deslop Pass
+
+After verification succeeds with no critical issues, perform a targeted code-bloat review on all files created or modified during this workflow. Specifically target:
+
+1. **Unnecessary abstractions** — interfaces with one implementation, factory classes that create one type, wrapper classes that add no behavior
+2. **Over-commenting** — comments that restate the code, obvious doc comments, commented-out code blocks
+3. **Redundant error handling** — try/catch that just rethrows, null checks on values that can never be null, defensive code with no plausible failure mode
+4. **Dead code** — unused private methods, unreachable branches, unused parameters
+5. **Over-engineering** — generic solutions for non-generic problems, premature optimization patterns, unnecessary design patterns
+
+Deslop rules:
+- Only simplify, never add complexity
+- Preserve all runtime behavior
+- Do not touch code that existed before this workflow started
+- If in doubt, leave it alone — false positives are worse than missed bloat
+- Apply fixes directly, then re-check console via `read_console` to confirm no regressions
+
 ### Final Summary
 
 Present a complete summary to the user:
