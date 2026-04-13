@@ -15,7 +15,7 @@ Built for **solo indie mobile game developers**. Drop it into any Unity project 
 | **Agents** | 15 | Specialized sub-agents for coding, verification, scene building, profiling, testing |
 | **Commands** | 17 | Slash commands like `/unity-workflow`, `/unity-prototype`, `/unity-doctor` |
 | **Skills** | 35 | Knowledge modules for Unity systems, gameplay patterns, and mobile genres |
-| **Hooks** | 9 | Safety net — blocks scene/meta corruption, warns on serialization, suggests review |
+| **Hooks** | 20 | Safety net, quality gates, session persistence, cost tracking, auto-learning |
 | **Rules** | 5 | C# coding standards, performance rules, MVS architecture patterns |
 | **Scripts** | 8 | Validation tools for meta files, code quality, serialization, architecture |
 | **Templates** | 10 | C# templates for MVS pattern (Model, View, System, LifetimeScope, Message) |
@@ -44,12 +44,20 @@ Describe a mechanic, and Claude writes the C# scripts, builds the scene via MCP,
 
 The `unity-verifier` agent automatically reviews your code changes, fixes safe issues (missing `[FormerlySerializedAs]`, uncached `GetComponent`, `?.` on Unity objects), and re-verifies — up to 3 iterations until clean. Built into `/unity-workflow` and available as an optional step in `/unity-feature` and `/unity-prototype`.
 
-### Hook Kill Switches
+### Hook Profiles
 
-All safety hooks support environment variable overrides for power users and CI:
+Hooks are organized into three profiles. Set `UNITY_HOOK_PROFILE` to control which hooks run:
+
+| Profile | What's Active | Best For |
+|---------|--------------|----------|
+| `minimal` | Safety hooks only (block scene/meta corruption, editor guards, pre-compact) | CI pipelines, experienced developers |
+| `standard` | Safety + quality warnings + session persistence + stop validation (default) | Daily development |
+| `strict` | Everything: GateGuard, cost tracking, auto-learning, build analysis | New projects, learning, auditing |
 
 ```bash
-DISABLE_UNITY_HOOKS=1              # Bypass all hooks
+UNITY_HOOK_PROFILE=strict          # Enable all hooks including GateGuard
+UNITY_HOOK_PROFILE=minimal         # Only critical safety hooks
+DISABLE_UNITY_HOOKS=1              # Bypass all hooks entirely
 UNITY_HOOK_MODE=warn               # Downgrade blocks to warnings
 DISABLE_HOOK_BLOCK_SCENE_EDIT=1    # Disable a specific hook
 ```
@@ -192,11 +200,11 @@ Commands support `--quick` (routes to sonnet lite agent) and `--thorough` (route
 
 ---
 
-## Safety Hooks
+## Hooks
 
-These hooks prevent the most common AI mistakes in Unity projects:
+20 hooks across 5 lifecycle events, organized by profile level.
 
-### Blocking (prevents the action)
+### Blocking Hooks — PreToolUse (minimal profile)
 | Hook | What It Prevents |
 |------|-----------------|
 | `block-scene-edit` | Direct text editing of .unity/.prefab YAML (corrupts references) |
@@ -204,16 +212,43 @@ These hooks prevent the most common AI mistakes in Unity projects:
 | `block-projectsettings` | Staging ProjectSettings/ via git (use MCP instead) |
 | `guard-editor-runtime` | `UnityEditor` namespace in runtime code without `#if UNITY_EDITOR` |
 
-### Warning (alerts but allows)
+### GateGuard — PreToolUse (strict profile)
+| Hook | What It Does |
+|------|-------------|
+| `gateguard` | Blocks Edit/Write on C# files until the agent has Read them first. Prevents hallucinated changes. For MVS files, suggests reading Model/System counterparts. |
+
+### Quality Hooks — PostToolUse (standard profile)
 | Hook | What It Catches |
 |------|----------------|
 | `warn-serialization` | Field renamed without `[FormerlySerializedAs]` (silent data loss) |
 | `warn-filename` | C# file name doesn't match class name (script won't attach) |
 | `warn-platform-defines` | `#if UNITY_ANDROID` without `#else` fallback |
+| `quality-gate` | GetComponent in Update, LINQ in gameplay, `?.` on Unity objects, uncached Camera.main, SendMessage |
 | `validate-commit` | Missing .meta files, code quality issues on commit |
 | `suggest-verify` | Suggests `/unity-review` after 5+ C# files modified |
+| `build-analyze` | Post-build: shader variant counts, size, stripping issues, deprecated APIs |
 
-All hooks support kill switches via environment variables or `.claude/settings.local.json`. See the [Hook Kill Switches](#hook-kill-switches) section above.
+### Tracking Hooks — PostToolUse (standard/strict profile)
+| Hook | What It Records |
+|------|----------------|
+| `track-edits` | Files modified during session (standard) |
+| `track-reads` | Files read during session — feeds GateGuard (strict) |
+| `cost-tracker` | Every tool call with timestamp for session metrics (strict) |
+
+### Session Hooks — SessionStart / Stop
+| Hook | Lifecycle | What It Does |
+|------|-----------|-------------|
+| `session-restore` | SessionStart | Restores prior branch, workflow phase, modified files list |
+| `session-save` | Stop | Saves session state for next conversation (branch, edits, duration) |
+| `stop-validate` | Stop | Runs full-file validation on all C# files modified during session |
+| `auto-learn` | Stop | Captures session patterns (MVS breakdown, tool usage) to learnings log |
+
+### Advisory Hooks — PreCompact
+| Hook | What It Does |
+|------|-------------|
+| `pre-compact` | Saves git state before context compaction |
+
+All hooks support kill switches via environment variables. See [Hook Profiles](#hook-profiles) above.
 
 ---
 
@@ -337,16 +372,37 @@ Command (orchestrates the workflow)
 ### Hook Safety Net
 
 ```
-Claude attempts to edit PlayerController.cs
+Claude attempts to edit PlayerView.cs
     │
-    ├──▶ PreToolUse: guard-editor-runtime.sh checks for UnityEditor usage
-    │                 (_lib.sh checks kill switches first)
+    ├──▶ _lib.sh: check profile level, kill switches
+    ├──▶ PreToolUse: guard-editor-runtime.sh — UnityEditor guard
+    ├──▶ PreToolUse: gateguard.sh — was this file Read first? [strict]
+    │                               suggest reading PlayerModel.cs too
     │
     ├──▶ [Edit happens]
     │
-    └──▶ PostToolUse: warn-serialization.sh checks for field renames
-                       warn-filename.sh checks file/class name match
-                       suggest-verify.sh tracks edit count
+    ├──▶ PostToolUse: warn-serialization.sh — field rename check
+    │                  quality-gate.sh — GetComponent in Update? LINQ? ?.?
+    │                  track-edits.sh — record for session metrics
+    │
+    └──▶ [Session ends]
+         ├──▶ stop-validate.sh — full-file checks on all modified C#
+         ├──▶ session-save.sh — persist state for next conversation
+         └──▶ auto-learn.sh — log session patterns
+```
+
+### Session Lifecycle
+
+```
+SessionStart
+    └──▶ session-restore.sh — load prior state (branch, phase, files)
+
+[... work happens, tracked by hooks ...]
+
+Stop
+    ├──▶ stop-validate.sh — batch validation on all modified files
+    ├──▶ session-save.sh — save state to /tmp/unity-claude-hooks/
+    └──▶ auto-learn.sh — append session metrics to learnings.jsonl
 ```
 
 ---

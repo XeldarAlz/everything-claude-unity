@@ -12,6 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HOOK_PROFILE_LEVEL="minimal"
 source "${SCRIPT_DIR}/_lib.sh"
 
 INPUT=$(cat)

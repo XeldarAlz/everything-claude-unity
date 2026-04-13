@@ -26,6 +26,11 @@
             "type": "command",
             "command": ".claude/hooks/guard-editor-runtime.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/gateguard.sh",
+            "timeout": 3000
           }
         ]
       },
@@ -41,6 +46,16 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-reads.sh",
+            "timeout": 2000
+          }
+        ]
+      },
       {
         "matcher": "Edit|Write",
         "hooks": [
@@ -61,6 +76,16 @@
           },
           {
             "type": "command",
+            "command": ".claude/hooks/quality-gate.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-edits.sh",
+            "timeout": 2000
+          },
+          {
+            "type": "command",
             "command": ".claude/hooks/suggest-verify.sh",
             "timeout": 3000
           }
@@ -73,6 +98,21 @@
             "type": "command",
             "command": ".claude/hooks/validate-commit.sh",
             "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/build-analyze.sh",
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/cost-tracker.sh",
+            "timeout": 2000
           }
         ]
       }
@@ -85,6 +125,40 @@
             "type": "command",
             "command": ".claude/hooks/pre-compact.sh",
             "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-restore.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/stop-validate.sh",
+            "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-save.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/auto-learn.sh",
+            "timeout": 10000
           }
         ]
       }
