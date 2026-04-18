@@ -95,4 +95,10 @@ fi
 
 echo "-------------------------------" >&2
 
+# Write verify_fail event for notification system
+if [ "$ISSUES" -gt 0 ] 2>/dev/null; then
+    jq -nc --arg event "verify_fail" --arg details "$ISSUES file(s) with issues" \
+        '{event: $event, details: $details}' > "$UNITY_HOOK_STATE_DIR/notify-event.json" 2>/dev/null || true
+fi
+
 exit 0

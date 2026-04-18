@@ -11,6 +11,15 @@
     "// DISABLE_HOOK_BLOCK_SCENE_EDIT": "Set to 1 to disable this specific hook",
     "// DISABLE_HOOK_BLOCK_META_EDIT": "Set to 1 to disable this specific hook",
     "// DISABLE_HOOK_GUARD_EDITOR_RUNTIME": "Set to 1 to disable this specific hook",
-    "// DISABLE_HOOK_BLOCK_PROJECTSETTINGS": "Set to 1 to disable this specific hook"
+    "// DISABLE_HOOK_BLOCK_PROJECTSETTINGS": "Set to 1 to disable this specific hook",
+
+    "// --- Notification system ---": "---",
+    "// UNITY_NOTIFY_ENABLED": "Set to 1 to enable notifications",
+    "// UNITY_NOTIFY_CHANNELS": "JSON array of channel configs, e.g.: [{\"url\":\"https://discord.com/api/webhooks/...\",\"format\":\"discord\",\"events\":[\"session_end\",\"build_complete\"]},{\"url\":\"https://hooks.slack.com/services/...\",\"format\":\"slack\",\"events\":[\"verify_fail\"]},{\"format\":\"native\",\"events\":[\"session_end\",\"build_complete\"]}]",
+    "// UNITY_NOTIFY_NATIVE": "Set to 1 to enable OS-native notifications (macOS/Linux) without webhook",
+    "// UNITY_NOTIFY_RATE_LIMIT": "Minimum seconds between notifications per channel (default: 60)",
+    "// UNITY_NOTIFY_MIN_DURATION": "Minimum session seconds for session_end event (default: 300)",
+    "// UNITY_NOTIFY_WEBHOOK_URL": "Legacy: single webhook URL (use UNITY_NOTIFY_CHANNELS instead)",
+    "// UNITY_NOTIFY_FORMAT": "Legacy: auto | discord | slack (use UNITY_NOTIFY_CHANNELS instead)"
   }
 }

@@ -93,4 +93,20 @@ if [ -n "$WARNINGS" ]; then
     echo "----------------------" >&2
 fi
 
+# Write build_complete event for notification system
+BUILD_STATUS=""
+if echo "$COMBINED" | grep -qiE '(Build failed|error CS|Fatal error)'; then
+    BUILD_STATUS="FAILED — ${ERRORS:-unknown} error(s)"
+elif echo "$COMBINED" | grep -qiE '(Build completed|Build succeeded)'; then
+    BUILD_STATUS="SUCCESS"
+    if [ -n "${BUILD_SIZE:-}" ]; then
+        BUILD_STATUS="SUCCESS (${BUILD_SIZE})"
+    fi
+fi
+
+if [ -n "$BUILD_STATUS" ]; then
+    jq -nc --arg event "build_complete" --arg details "$BUILD_STATUS" \
+        '{event: $event, details: $details}' > "$UNITY_HOOK_STATE_DIR/notify-event.json" 2>/dev/null || true
+fi
+
 exit 0
