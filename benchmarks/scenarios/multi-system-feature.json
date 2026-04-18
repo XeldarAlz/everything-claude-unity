@@ -1,0 +1,18 @@
+{
+  "name": "multi-system-feature",
+  "description": "Implement coin pickup with score tracking, UI display, and sound",
+  "prompt": "Implement a coin pickup system: CoinModel with value, CoinSystem that handles pickup logic and publishes ScoreChangedMessage, CoinView on the pickup prefab.",
+  "tags": ["architecture", "mvs", "events"],
+  "expected_patterns": [
+    {"file": "**/CoinModel.cs", "pattern": "sealed class CoinModel"},
+    {"file": "**/CoinSystem.cs", "pattern": "IPublisher|Publish"},
+    {"file": "**/CoinView.cs", "pattern": "MonoBehaviour"},
+    {"file": "**/*Message*.cs", "pattern": "readonly struct.*ScoreChanged"}
+  ],
+  "forbidden_patterns": [
+    {"file": "**/CoinSystem.cs", "pattern": "MonoBehaviour"},
+    {"file": "**/CoinModel.cs", "pattern": "MonoBehaviour"},
+    {"file": "**/*.cs", "pattern": "FindObjectOfType"},
+    {"file": "**/*.cs", "pattern": "static.*Instance"}
+  ]
+}

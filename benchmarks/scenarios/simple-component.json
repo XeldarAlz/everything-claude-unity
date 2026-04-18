@@ -1,0 +1,18 @@
+{
+  "name": "simple-component",
+  "description": "Add a HealthComponent with a TakeDamage method",
+  "prompt": "Create a HealthSystem following MVS pattern with a HealthModel that has a ReactiveProperty<int> Health, and a HealthSystem with a TakeDamage(int amount) method that clamps health to 0.",
+  "tags": ["architecture", "mvs"],
+  "expected_patterns": [
+    {"file": "**/Health*.cs", "pattern": "sealed class"},
+    {"file": "**/HealthModel.cs", "pattern": "ReactiveProperty"},
+    {"file": "**/HealthSystem.cs", "pattern": "TakeDamage"},
+    {"file": "**/*.cs", "pattern": "\\[SerializeField\\].*private"},
+    {"file": "**/HealthSystem.cs", "pattern": "private readonly"}
+  ],
+  "forbidden_patterns": [
+    {"file": "**/*.cs", "pattern": "public .* _"},
+    {"file": "**/*.cs", "pattern": "MonoBehaviour"},
+    {"file": "**/*.cs", "pattern": "StartCoroutine"}
+  ]
+}

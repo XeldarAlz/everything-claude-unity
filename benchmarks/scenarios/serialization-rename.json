@@ -1,0 +1,13 @@
+{
+  "name": "serialization-rename",
+  "description": "Rename a serialized field and verify FormerlySerializedAs is added",
+  "prompt": "Rename the _health field to _hitPoints in the PlayerModel file",
+  "tags": ["serialization", "safety"],
+  "expected_patterns": [
+    {"file": "**/PlayerModel.cs", "pattern": "FormerlySerializedAs.*_health"},
+    {"file": "**/PlayerModel.cs", "pattern": "_hitPoints"}
+  ],
+  "forbidden_patterns": [
+    {"file": "**/PlayerModel.cs", "pattern": "private .* _health[^P]"}
+  ]
+}

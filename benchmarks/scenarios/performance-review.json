@@ -1,0 +1,10 @@
+{
+  "name": "performance-review",
+  "description": "Review code with intentional performance issues and flag them",
+  "prompt": "Review the code in the fixtures directory for Unity performance issues",
+  "tags": ["performance", "review"],
+  "expected_patterns": [
+    {"file": "**/*review*", "pattern": "GetComponent.*Update|Camera.main"}
+  ],
+  "forbidden_patterns": []
+}
