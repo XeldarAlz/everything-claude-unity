@@ -20,7 +20,20 @@ Parse `$ARGUMENTS` for a team flag. Everything after the flag is the task descri
 | `--build` | unity-coder + unity-test-runner + unity-reviewer | New features with full quality coverage |
 | `--feature` | unity-coder + unity-scene-builder + unity-test-runner | Features that need scene setup |
 | `--quality` | unity-reviewer + unity-optimizer + unity-test-runner | Auditing existing code |
+| `--security` | unity-security-reviewer + unity-reviewer + unity-linter | Security audit with code quality check |
 | `--custom <agents>` | Comma-separated agent names | Any combination |
+
+### Quick Mode
+
+Add `--quick` to any preset to swap opus agents for their sonnet/haiku equivalents where available:
+
+| Opus Agent | Quick Replacement |
+|------------|-------------------|
+| `unity-coder` | `unity-coder-lite` |
+| `unity-fixer` | `unity-fixer-lite` |
+| `unity-reviewer` (already sonnet) | No change |
+
+Example: `/unity-team --build --quick "add health bar UI"` uses `unity-coder-lite` instead of `unity-coder`.
 
 If no team flag is provided, default to `--build`.
 

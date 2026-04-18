@@ -30,23 +30,36 @@ If the user provided a detailed description in `$ARGUMENTS` and the requirements
 
 Based on confirmed requirements:
 
-1. **Scan the project** — read CLAUDE.md, check existing scripts, understand the codebase
+1. **Scan the project** — use `unity-scout` (haiku) for fast codebase exploration: read CLAUDE.md, find relevant existing scripts, map assembly structure
 2. **Identify subsystems** — which Unity packages and skills are involved?
-3. **Choose execution strategy**:
-   - Simple feature → `unity-coder` agent
-   - Rapid prototype → `unity-prototyper` agent
-   - UI screen → `unity-ui-builder` agent
-   - Networking → `unity-network-dev` agent
-   - Shader work → `unity-shader-dev` agent
-   - Multiple subsystems → sequence of agent calls
-4. **Generate implementation plan**:
+3. **Assess complexity** using the model-routing skill heuristics:
+   - Count estimated files to create/modify
+   - Check for complexity keywords in the task description
+   - Identify risk factors (serialization changes, networking, platform-specific, threading)
+   - Rate as **simple** (1-2 files, no risk) / **moderate** (3-8 files, some risk) / **complex** (9+ files, high risk)
+4. **Choose execution strategy** based on complexity:
+   - **Simple** → `unity-coder-lite` (sonnet) — faster, cheaper
+   - **Moderate** → `unity-coder` (opus) — deeper reasoning
+   - **Complex** → multiple agents via `/unity-team`
+   - **Specialized** → route to domain agent: `unity-prototyper`, `unity-ui-builder`, `unity-network-dev`, `unity-shader-dev`
+5. **Generate implementation plan**:
    - Scripts to create/modify (with file paths and assembly placement)
    - Scene changes needed (GameObjects, components, physics layers)
    - Dependencies on existing systems
    - Risk areas (serialization, platform-specific, performance)
-   - Estimated complexity: simple / moderate / complex
+   - Estimated complexity and chosen agent tier with rationale
 
 Present the plan to the user and wait for approval before executing.
+
+## Phase 2b: Critic Review (optional)
+
+Unless `--no-critic` is specified in the original arguments:
+
+1. **Invoke `unity-critic`** (opus, read-only) with the approved plan
+2. The critic will challenge the plan for Unity-specific gotchas, missed edge cases, over-engineering, and performance risks
+3. Present the critic's challenges to the user
+4. Incorporate valid challenges into the plan before executing
+5. If no critical challenges are raised, proceed directly to Phase 3
 
 ## Phase 3: Execute
 
