@@ -21,11 +21,12 @@ This project follows the architecture established by [everything-claude-code](ht
 ```
 .claude/
   settings.json      Configuration: permissions, MCP servers, hook definitions
-  agents/            15 agent definitions (.md files with frontmatter)
-  commands/          17 user-invocable slash commands
-  hooks/              9 shell scripts for pre/post tool validation + _lib.sh
+  agents/            20 agent definitions (.md files with frontmatter)
+  commands/          22 user-invocable slash commands
+  hooks/             22 shell scripts + _lib.sh (safety, quality, session, learning)
   rules/              5 always-loaded coding standards
-  skills/            35 knowledge modules in 6 categories
+  skills/            41 knowledge modules in 6 categories
+  state/             Session state directory (session.json, tracking files)
   VERSION            Installed version for upgrade tracking
 ```
 
@@ -37,6 +38,7 @@ install.sh           One-command installer
 upgrade.sh           Version-aware upgrade with backup and customization preservation
 uninstall.sh         Clean removal with backup option
 templates/           C# templates for MVS pattern (Model, View, System, LifetimeScope, Message)
+benchmarks/          Structural correctness benchmarks for agent output
 ```
 
 ---
@@ -58,9 +60,9 @@ Agents are Markdown files in `.claude/agents/` with YAML frontmatter that contro
 
 ### Model Selection
 
-- **Opus** -- complex implementation, creative prototyping, debugging, shader writing, verification (9 agents)
-- **Sonnet** -- code review, test writing, migration, builds, and lite variants for simple tasks (6 agents)
-- **Haiku** -- not currently used, suitable for simple formatting or lookup tasks
+- **Opus** -- complex implementation, creative prototyping, debugging, shader writing, plan critique, verification (10 agents)
+- **Sonnet** -- code review, test writing, migration, builds, git operations, security audit, and lite variants (8 agents)
+- **Haiku** -- fastest and cheapest, used for read-only exploration and quick validation (2 agents: `unity-scout`, `unity-linter`)
 
 Some commands support `--quick` (routes to sonnet-tier lite agent) and `--thorough` (routes to opus) flags. See `docs/MODEL-ROUTING.md` for the full routing table.
 
@@ -121,35 +123,52 @@ Skills with `alwaysApply: true` in frontmatter (like `unity-mcp-patterns`) are l
 
 ## How Hooks Work
 
-Hooks are shell scripts in `.claude/hooks/` configured in `settings.json`. They run automatically before or after tool invocations.
+Hooks are shell scripts in `.claude/hooks/` configured in `settings.json`. They run automatically at various lifecycle events: before/after tool invocations, before context compaction, on session start, and on session stop.
 
-### PreToolUse (Blocking)
+All 22 hooks source a shared library (`_lib.sh`) that provides kill switches, profile filtering, and utility functions. Hooks are organized into three **profile levels** -- `minimal` (5 hooks), `standard` (18 cumulative), and `strict` (22 cumulative). Set the active profile via `UNITY_HOOK_PROFILE=standard`.
 
-These run BEFORE a tool executes. Exit codes:
-- `0` -- allow the operation
-- `2` -- block the operation (Claude sees the error message)
+### Event Types
 
-| Hook | Matcher | Purpose |
-|------|---------|---------|
-| `block-scene-edit.sh` | Edit\|Write | Prevents direct editing of .unity/.prefab/.asset files |
-| `block-meta-edit.sh` | Edit\|Write | Prevents editing .meta files |
-| `guard-editor-runtime.sh` | Edit\|Write | Prevents UnityEditor code without #if guards |
-| `block-projectsettings.sh` | Bash | Prevents manual ProjectSettings changes |
+| Event | When | Hook Types |
+|-------|------|------------|
+| PreToolUse | Before a tool executes | Blocking (exit 2) or allow (exit 0) |
+| PostToolUse | After a tool executes | Advisory warnings and tracking (exit 0) |
+| PreCompact | Before context compaction | State preservation (exit 0) |
+| SessionStart | When a conversation begins | State restoration (exit 0) |
+| Stop | When the agent stops | Validation, persistence, learning, notifications (exit 0) |
 
-### PostToolUse (Warning)
+### Hook Summary
 
-These run AFTER a tool executes. They warn but do not block:
-
-| Hook | Matcher | Purpose |
-|------|---------|---------|
-| `warn-serialization.sh` | Edit\|Write | Warns if serialized fields renamed without FormerlySerializedAs |
-| `warn-filename.sh` | Edit\|Write | Warns if file name does not match class name |
-| `warn-platform-defines.sh` | Edit\|Write | Warns about platform defines without fallback |
-| `validate-commit.sh` | Bash | Validates commit messages and checks for common issues |
+| Hook | Event | Matcher | Profile | Type |
+|------|-------|---------|---------|------|
+| `block-scene-edit` | PreToolUse | Edit\|Write | minimal | Blocking |
+| `block-meta-edit` | PreToolUse | Edit\|Write | minimal | Blocking |
+| `guard-editor-runtime` | PreToolUse | Edit\|Write | minimal | Blocking |
+| `guard-project-config` | PreToolUse | Edit\|Write | standard | Blocking |
+| `gateguard` | PreToolUse | Edit\|Write | strict | Blocking |
+| `block-projectsettings` | PreToolUse | Bash | minimal | Blocking |
+| `track-reads` | PostToolUse | Read | strict | Advisory |
+| `warn-serialization` | PostToolUse | Edit\|Write | standard | Advisory |
+| `warn-filename` | PostToolUse | Edit\|Write | standard | Advisory |
+| `warn-platform-defines` | PostToolUse | Edit\|Write | standard | Advisory |
+| `quality-gate` | PostToolUse | Edit\|Write | standard | Advisory |
+| `track-edits` | PostToolUse | Edit\|Write | standard | Advisory |
+| `suggest-verify` | PostToolUse | Edit\|Write | standard | Advisory |
+| `validate-commit` | PostToolUse | Bash | standard | Advisory |
+| `build-analyze` | PostToolUse | Bash | strict | Advisory |
+| `cost-tracker` | PostToolUse | (all) | strict | Advisory |
+| `pre-compact` | PreCompact | (all) | minimal | Advisory |
+| `session-restore` | SessionStart | (all) | standard | Advisory |
+| `stop-validate` | Stop | (all) | standard | Advisory |
+| `session-save` | Stop | (all) | standard | Advisory |
+| `auto-learn` | Stop | (all) | strict | Advisory |
+| `notify` | Stop | (all) | standard | Advisory |
 
 ### Hook Input
 
 Hooks receive JSON on stdin with the tool invocation details (`tool_name`, `tool_input`). They use `jq` to parse and inspect the operation.
+
+For the full hook catalog with detailed descriptions, environment variables, and configuration, see [HOOK-REFERENCE.md](HOOK-REFERENCE.md).
 
 ---
 
@@ -218,16 +237,19 @@ File Tools         MCP Tools
 C# Source Files    Unity Editor
 ```
 
-### Three Agent Categories
+### Four Agent Categories
 
-1. **Code Agents** -- write/edit C# files only, no MCP access
-   - `unity-reviewer`, `unity-migrator`
+1. **Read-Only Agents** -- read and analyze only, no file modification or MCP access
+   - `unity-reviewer`, `unity-scout`, `unity-linter`, `unity-security-reviewer`, `unity-critic`
 
-2. **MCP-Powered Agents** -- control Unity Editor only, no file writing
+2. **Code Agents** -- write/edit C# files, may run git commands, no MCP access
+   - `unity-migrator`, `unity-git-master`
+
+3. **MCP-Powered Agents** -- control Unity Editor only, no file writing
    - `unity-scene-builder`, `unity-build-runner`, `unity-test-runner`
 
-3. **Hybrid Agents** -- both code and MCP access
-   - `unity-coder`, `unity-prototyper`, `unity-fixer`, `unity-optimizer`, `unity-shader-dev`, `unity-network-dev`, `unity-ui-builder`
+4. **Hybrid Agents** -- both code and MCP access
+   - `unity-coder`, `unity-coder-lite`, `unity-prototyper`, `unity-fixer`, `unity-fixer-lite`, `unity-optimizer`, `unity-shader-dev`, `unity-network-dev`, `unity-ui-builder`, `unity-verifier`
 
 ---
 
@@ -236,7 +258,7 @@ C# Source Files    Unity Editor
 ```json
 {
   "permissions": {
-    "defaultMode": "allowEdits"      // Claude can edit files without asking
+    "defaultMode": "acceptEdits"     // Claude can edit files without asking
   },
   "mcpServers": {
     "unityMCP": {
@@ -244,8 +266,11 @@ C# Source Files    Unity Editor
     }
   },
   "hooks": {
-    "PreToolUse": [ ... ],           // Blocking hooks
-    "PostToolUse": [ ... ]           // Warning hooks
+    "PreToolUse": [ ... ],           // Blocking hooks (safety gates)
+    "PostToolUse": [ ... ],          // Warning hooks (quality, tracking)
+    "PreCompact": [ ... ],           // State preservation before compaction
+    "SessionStart": [ ... ],         // Session restoration
+    "Stop": [ ... ]                  // Validation, persistence, learning, notifications
   }
 }
 ```
@@ -263,6 +288,7 @@ This structure follows Claude Code's discovery conventions:
 - **skills/** -- discovered via glob patterns, loaded on demand
 - **hooks/** -- referenced by path in `settings.json`, executed by Claude Code runtime
 - **rules/** -- all files in this directory are loaded as context automatically
+- **state/** -- runtime session state (session.json, tracking files), git-ignored
 
 Each component is a standalone Markdown file. No build step, no compilation, no registration. Drop files in the right directory and they work.
 
@@ -281,6 +307,58 @@ UNITY_HOOK_MODE=warn               Blocking hooks (exit 2) downgraded to warning
 The `unity_hook_block()` function replaces direct `exit 2` calls in blocking hooks. It respects `UNITY_HOOK_MODE=warn`, printing the block message as a warning instead.
 
 Configure overrides in `.claude/settings.local.json` (git-ignored) so they don't affect the team.
+
+---
+
+## State Management
+
+Session state is persisted in the `.claude/state/` directory (falls back to `/tmp/unity-claude-hooks` if the directory does not exist). This enables conversation continuity across sessions and context compaction.
+
+### session.json Schema
+
+```json
+{
+  "schema_version": 1,
+  "branch": "feature/player-movement",
+  "workflow_phase": "Execute",
+  "modified_files": ["Assets/Scripts/PlayerSystem.cs", "Assets/Scripts/PlayerModel.cs"],
+  "recent_commits": ["abc1234 Add PlayerSystem with movement"],
+  "session_duration": "12m 34s",
+  "tool_calls": 47,
+  "warnings_count": 3,
+  "saved_at": "2024-01-15T14:30:22Z",
+  "plan": {
+    "description": "Implement player movement",
+    "steps": [
+      { "name": "Write PlayerModel", "status": "done" },
+      { "name": "Write PlayerSystem", "status": "in-progress" }
+    ]
+  },
+  "verification": {
+    "last_iteration": 2
+  },
+  "agent_context": {
+    "last_agent": "unity-coder"
+  }
+}
+```
+
+### Tracking Files
+
+| File | Purpose | Written By |
+|------|---------|------------|
+| `session.json` | Full session state for restore | `session-save.sh` |
+| `session-start-time` | Epoch timestamp for duration calculation | `session-restore.sh` |
+| `gateguard-reads.txt` | Files read during session (for GateGuard) | `track-reads.sh` |
+| `session-edits.txt` | Files edited during session | `track-edits.sh` |
+| `session-cost.jsonl` | Tool call log (tool name + timestamp) | `cost-tracker.sh` |
+| `learnings.jsonl` | Extracted session patterns | `auto-learn.sh` |
+| `session-warnings.txt` | Hook warnings for analytics | Various hooks |
+| `precompact-state.md` | Git state snapshot before compaction | `pre-compact.sh` |
+
+### Session TTL
+
+Sessions expire after a configurable time-to-live. Set via `UNITY_SESSION_TTL_HOURS` (default: 4 hours). The `session-restore.sh` hook checks the `saved_at` timestamp and discards stale sessions.
 
 ---
 
@@ -308,6 +386,22 @@ Review changes → Classify issues → Auto-fix safe issues → Run tests → Re
 Auto-fixable issues include: missing `[FormerlySerializedAs]`, `?.` on Unity objects, uncached `GetComponent` in Update, `tag ==` instead of `CompareTag`, missing `#if UNITY_EDITOR` guards.
 
 Issues requiring human judgment (architecture, design patterns, ambiguous trade-offs) are reported but not auto-fixed.
+
+---
+
+## Benchmarking
+
+The `benchmarks/` directory contains structural correctness benchmarks for agent output. Each benchmark scenario defines a prompt, expected files, required patterns, and forbidden patterns.
+
+Benchmarks do not invoke Claude Code directly. The workflow is:
+
+1. Run Claude Code manually with a scenario prompt in a scratch Unity project.
+2. Run `bash benchmarks/run-benchmarks.sh --workdir /path/to/output` to score the result.
+3. Use `--compare` to diff against a previous run and detect regressions.
+
+Results are written to `benchmarks/results/` as timestamped JSON files. Use benchmarks to validate that changes to agents, skills, or rules do not degrade output quality.
+
+See [BENCHMARK-GUIDE.md](BENCHMARK-GUIDE.md) for the full reference.
 
 ---
 

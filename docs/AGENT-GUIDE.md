@@ -4,14 +4,16 @@ How to use, customize, and create agents for everything-claude-unity.
 
 ---
 
-## All 12 Agents at a Glance
+## All 20 Agents at a Glance
 
 | Agent | Model | Description |
 |-------|-------|-------------|
 | `unity-coder` | opus | Implements gameplay systems, components, and managers with correct asmdef placement |
+| `unity-coder-lite` | sonnet | Lightweight coding agent for simpler implementation tasks |
 | `unity-prototyper` | opus | End-to-end rapid prototyping -- one prompt to playable prototype |
 | `unity-scene-builder` | opus | Builds scenes from natural language descriptions entirely via MCP |
 | `unity-fixer` | opus | Diagnoses and fixes bugs using console errors and live API inspection |
+| `unity-fixer-lite` | sonnet | Lightweight bug fixing for straightforward issues |
 | `unity-optimizer` | opus | Profiles performance and fixes CPU/GPU bottlenecks, GC spikes, draw calls |
 | `unity-shader-dev` | opus | Creates HLSL/ShaderLab shaders, ShaderGraph nodes, compute shaders |
 | `unity-network-dev` | opus | Implements multiplayer networking (Netcode, Mirror, Photon, Fish-Net) |
@@ -20,6 +22,12 @@ How to use, customize, and create agents for everything-claude-unity.
 | `unity-test-runner` | sonnet | Writes and runs EditMode/PlayMode tests, reports results |
 | `unity-build-runner` | sonnet | Configures builds, platform switching, player settings, Addressables |
 | `unity-migrator` | sonnet | Handles Unity version upgrades, render pipeline migration, deprecated API updates |
+| `unity-verifier` | opus | Automated verify-fix loop -- reviews changes, classifies issues, auto-fixes safe issues |
+| `unity-scout` | haiku | Fast codebase exploration -- scans project structure, finds files, maps dependencies |
+| `unity-linter` | haiku | Quick validation pass -- checks code against Unity rules without deep reasoning |
+| `unity-security-reviewer` | sonnet | Security audit -- PlayerPrefs secrets, hardcoded keys, insecure network calls, debug builds |
+| `unity-git-master` | sonnet | Unity-aware git operations -- LFS, merge strategies, .meta hygiene, .gitattributes |
+| `unity-critic` | opus | Challenges implementation plans -- identifies risks, missed edge cases, over-engineering |
 
 ---
 
@@ -48,8 +56,105 @@ What do you need?
 |     +-- Build for a platform? ---------------> unity-build-runner
 |
 +-- Upgrade or migrate?
-      +-- Unity version, pipeline, APIs? ------> unity-migrator
+|     +-- Unity version, pipeline, APIs? ------> unity-migrator
+|
++-- Explore or validate?
+|     +-- Find files, map dependencies? -------> unity-scout
+|     +-- Quick lint pass on code? ------------> unity-linter
+|     +-- Security audit? ---------------------> unity-security-reviewer
+|
++-- Git operations?
+|     +-- LFS, .gitattributes, .meta hygiene? -> unity-git-master
+|
++-- Challenge a plan?
+      +-- Find risks before execution? --------> unity-critic
 ```
+
+---
+
+### unity-scout (haiku)
+
+Fast, read-only codebase explorer. Scans project structure, finds relevant files, maps dependencies, and reports findings.
+
+**When to Use:**
+- You need to find where something lives in the codebase quickly
+- You want a project overview (script count, scene list, package inventory)
+- You need to trace symbol usage or dependency chains
+- Another agent needs codebase context before starting work
+
+**When NOT to Use:**
+- You need deep analysis or reasoning about code quality (use `unity-reviewer`)
+- You need to modify files (scout is read-only)
+- The task requires understanding subtle Unity behavior (haiku may miss nuance)
+
+---
+
+### unity-linter (haiku)
+
+Fast validation pass that checks Unity C# code against the project's rules and reports violations. Read-only -- never modifies files.
+
+**When to Use:**
+- Quick pre-commit sanity check on changed files
+- Scanning a batch of files for common Unity pitfalls
+- Validating that generated code follows project conventions
+- You want speed over depth -- a fast pass before deeper review
+
+**When NOT to Use:**
+- You need fixes applied automatically (use `unity-fixer` or `unity-reviewer` with write access)
+- You need architectural analysis (use `unity-critic`)
+- The code has complex, context-dependent issues that require deep reasoning
+
+---
+
+### unity-security-reviewer (sonnet)
+
+Security auditor for Unity projects. Reviews code for vulnerabilities, data exposure, and insecure practices. Strictly read-only.
+
+**When to Use:**
+- Before releasing a build -- audit for hardcoded secrets, insecure saves, debug code
+- Reviewing network code for TLS issues, certificate pinning, insecure URLs
+- Checking PlayerPrefs usage for sensitive data exposure
+- Auditing deserialization patterns for code execution risks
+
+**When NOT to Use:**
+- General code review (use `unity-reviewer`)
+- Performance optimization (use `unity-optimizer`)
+- You need the issues fixed, not just reported (pair with `unity-fixer` for remediation)
+
+---
+
+### unity-git-master (sonnet)
+
+Unity-specialized git operations agent. Handles LFS configuration, merge strategies for binary assets, .meta file hygiene, branch naming, and .gitattributes maintenance.
+
+**When to Use:**
+- Setting up Git LFS for a new Unity project
+- Configuring `.gitattributes` with Unity merge strategies
+- Validating `.meta` file integrity (orphaned metas, missing metas, duplicate GUIDs)
+- Resolving Unity-specific merge conflicts (`.unity`, `.prefab`, `.meta` files)
+- Cleaning up branches or enforcing naming conventions
+
+**When NOT to Use:**
+- General git operations that are not Unity-specific
+- You need to modify C# code (git-master only runs git commands)
+- Complex rebasing or history rewriting (do this manually)
+
+---
+
+### unity-critic (opus)
+
+Senior Unity architect that challenges implementation plans before execution. Identifies risks, missed edge cases, over-engineering, and Unity-specific gotchas. Used by `/unity-workflow` in the Plan phase.
+
+**When to Use:**
+- Before executing a complex implementation plan -- get a second opinion
+- You suspect a design has hidden Unity lifecycle issues (execution order, domain reload, destruction mid-async)
+- You want to catch over-engineering before it happens
+- Validating that a plan handles edge cases (scene transitions, disabled objects, re-entrant calls)
+
+**When NOT to Use:**
+- You need code written or modified (critic is read-only)
+- The task is simple enough that review is overhead
+- You need a code review of existing code (use `unity-reviewer`)
 
 ---
 
@@ -224,10 +329,15 @@ Use the `unity-localization` agent to handle: **$ARGUMENTS**
 | Build a scene from description | opus | Creative interpretation, complex MCP tool orchestration |
 | Debug a subtle issue | opus | Needs deep reasoning about Unity lifecycle, serialization, threading |
 | Write shaders | opus | HLSL requires precise understanding of GPU pipelines |
+| Challenge a plan before execution | opus | Needs deep Unity knowledge to find subtle risks |
 | Review code | sonnet | Structured checklist, pattern matching, faster turnaround |
 | Write unit tests | sonnet | Test patterns are well-defined, speed matters for iteration |
 | Run a build | sonnet | Mostly configuration and tool invocation |
 | Migrate deprecated APIs | sonnet | Mapping old API to new API is well-documented |
+| Security audit | sonnet | Pattern matching for known vulnerability classes |
+| Git LFS and .meta hygiene | sonnet | Structured git operations, tool invocation |
+| Quick lint pass | haiku | Fast pattern matching against known rules, no deep reasoning needed |
+| Find files and map dependencies | haiku | Simple lookups and grep, speed matters more than depth |
 | Format or rename files | haiku | Simple mechanical task |
 
 ---
