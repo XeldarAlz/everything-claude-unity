@@ -49,6 +49,7 @@ WARNINGS=""
 if echo "$CONTENT" | grep -qE 'void\s+(Update|FixedUpdate|LateUpdate)\s*\('; then
     if echo "$CONTENT" | grep -qE '(GetComponent|TryGetComponent|FindObjectOfType|FindObjectsOfType|Camera\.main)\b'; then
         WARNINGS="${WARNINGS}  - GetComponent/FindObjectOfType/Camera.main detected near Update method. Cache in Awake().\n"
+        unity_track_warning "quality-gate" "GetComponent/FindObjectOfType/Camera.main in Update method"
     fi
 fi
 
@@ -59,6 +60,7 @@ if echo "$CONTENT" | grep -qE '\.(Where|Select|Any|All|First|Last|Count|OrderBy|
         *Tests*|*Test*|*test*) ;;
         *)
             WARNINGS="${WARNINGS}  - LINQ detected in gameplay code. Use manual loops to avoid GC allocations.\n"
+            unity_track_warning "quality-gate" "LINQ in gameplay code"
             ;;
     esac
 fi
@@ -66,11 +68,13 @@ fi
 # --- Check for tag == "string" instead of CompareTag ---
 if echo "$CONTENT" | grep -qE '\.tag\s*==\s*"'; then
     WARNINGS="${WARNINGS}  - Use CompareTag(\"tag\") instead of .tag == \"tag\" to avoid string allocation.\n"
+    unity_track_warning "quality-gate" "tag == string instead of CompareTag"
 fi
 
 # --- Check for null-conditional on potential Unity objects ---
 if echo "$CONTENT" | grep -qE '\?\.(enabled|transform|gameObject|name|tag|GetComponent)'; then
     WARNINGS="${WARNINGS}  - Null-conditional (?.) on Unity object bypasses destroyed-object detection. Use explicit null check.\n"
+    unity_track_warning "quality-gate" "Null-conditional on Unity object"
 fi
 
 # --- Check for Debug.Log without conditional ---
@@ -78,6 +82,7 @@ if echo "$CONTENT" | grep -qE 'Debug\.(Log|LogWarning|LogError)\s*\('; then
     if ! echo "$CONTENT" | grep -qE '#if\s+(UNITY_EDITOR|DEBUG|DEVELOPMENT_BUILD)'; then
         if ! echo "$CONTENT" | grep -qE '\[Conditional\s*\('; then
             WARNINGS="${WARNINGS}  - Debug.Log in production code. Wrap with #if UNITY_EDITOR or use [Conditional(\"UNITY_EDITOR\")] wrapper.\n"
+            unity_track_warning "quality-gate" "Debug.Log without conditional compilation"
         fi
     fi
 fi
@@ -85,11 +90,13 @@ fi
 # --- Check for new WaitForSeconds in methods (likely in Update or repeated calls) ---
 if echo "$CONTENT" | grep -qE 'new\s+WaitForSeconds\s*\('; then
     WARNINGS="${WARNINGS}  - new WaitForSeconds() allocates each call. Cache as a field or use UniTask.Delay.\n"
+    unity_track_warning "quality-gate" "new WaitForSeconds allocation"
 fi
 
 # --- Check for SendMessage/BroadcastMessage ---
 if echo "$CONTENT" | grep -qE '(SendMessage|BroadcastMessage)\s*\('; then
     WARNINGS="${WARNINGS}  - SendMessage/BroadcastMessage uses reflection. Use direct references or MessagePipe.\n"
+    unity_track_warning "quality-gate" "SendMessage/BroadcastMessage reflection call"
 fi
 
 if [ -n "$WARNINGS" ]; then

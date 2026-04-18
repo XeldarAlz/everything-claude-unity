@@ -9,15 +9,15 @@ args: subcommand
 
 Manage and leverage accumulated session learnings: **$ARGUMENTS**
 
-This command works with the data collected by the `auto-learn.sh` hook (strict profile) which records session patterns to `.claude/learnings.jsonl` after each session.
+This command works with the data collected by the `auto-learn.sh` hook (strict profile) which records session patterns to `.claude/state/learnings.jsonl` after each session. For pre-v1.3.0 projects, the file may be at `.claude/learnings.jsonl` instead.
 
 ## Subcommands
 
 ### `review` (default)
 
-Read `.claude/learnings.jsonl` and present a dashboard summarizing accumulated data:
+Read `.claude/state/learnings.jsonl` and present a dashboard summarizing accumulated data:
 
-1. **Read the learnings file** at `.claude/learnings.jsonl` (relative to project root)
+1. **Read the learnings file** at `.claude/state/learnings.jsonl` (or `.claude/learnings.jsonl` as fallback for pre-v1.3.0 projects)
 2. **Aggregate and present:**
 
 ```markdown
@@ -59,7 +59,7 @@ Read `.claude/learnings.jsonl` and present a dashboard summarizing accumulated d
 
 Analyze the learnings log for recurring patterns and apply confidence scoring:
 
-1. **Read all entries** from `.claude/learnings.jsonl`
+1. **Read all entries** from `.claude/state/learnings.jsonl` (or `.claude/learnings.jsonl` as fallback)
 2. **Group by category** (bug-fix, performance, architecture, workflow, integration)
 3. **Identify recurring patterns:**
    - Files that appear across multiple sessions → likely hotspots
@@ -115,9 +115,52 @@ globs: ["[relevant file patterns]"]
      3. Review and refine the content before use
    ```
 
+### `analytics`
+
+Deep session analytics — aggregate learnings into actionable metrics and trends:
+
+1. **Read all entries** from `.claude/state/learnings.jsonl` (or `.claude/learnings.jsonl` as fallback for pre-v1.3.0 projects)
+2. **Present:**
+
+```markdown
+### Session Analytics
+
+**Time Analysis**
+| Metric | Value |
+|--------|-------|
+| Total sessions | [count] |
+| Total time | [hours]h [minutes]m |
+| Avg session | [minutes]m |
+| Longest session | [minutes]m |
+
+**Agent Usage** (from agent_context data if available)
+| Agent | Sessions | Avg Duration |
+|-------|----------|--------------|
+| [agent] | [count] | [minutes]m |
+
+**Warning Hotspots** (from warnings_fired data if available)
+| Warning | Count | Files |
+|---------|-------|-------|
+| [hook:message] | [count] | [affected files] |
+
+**File Hotspots** (files edited across multiple sessions)
+| File | Sessions | Category |
+|------|----------|----------|
+| [path] | [count] | [category] |
+
+**Trends**
+- Average session duration: [trending up/down/stable]
+- Warning frequency: [trending up/down/stable]
+- Most active category: [category]
+```
+
+3. **Suggest next actions:**
+   - Use `/unity-skillify <topic>` to generate a skill from these patterns.
+   - Use `/unity-learn extract` to see pattern confidence levels.
+
 ## Rules
 
-- **Read-only by default** — `review` and `extract` only read and analyze, they never modify files
+- **Read-only by default** — `review`, `extract`, and `analytics` only read and analyze, they never modify files
 - **`draft-skill` outputs but does not save** — the user must review and place the file themselves
-- **No data, no output** — if `.claude/learnings.jsonl` doesn't exist or is empty, say so clearly
+- **No data, no output** — if `.claude/state/learnings.jsonl` (or `.claude/learnings.jsonl`) doesn't exist or is empty, say so clearly
 - **Privacy** — learnings are project-local and never sent anywhere

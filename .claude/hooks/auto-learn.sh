@@ -19,7 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK_PROFILE_LEVEL="strict"
 source "${SCRIPT_DIR}/_lib.sh"
 
-PERSISTENT_LOG="${SCRIPT_DIR}/../learnings.jsonl"
+# Use project-local state dir for learnings, fall back to old location
+PERSISTENT_LOG="${UNITY_HOOK_STATE_DIR}/learnings.jsonl"
 
 # Gather session data
 
@@ -50,6 +51,12 @@ EDITOR_COUNT=$(echo "$CS_FILES" | jq '[.[] | select(contains("Editor"))] | lengt
 TOOL_BREAKDOWN="{}"
 if [ -f "$UNITY_COST_FILE" ]; then
     TOOL_BREAKDOWN=$(jq -s 'group_by(.tool) | map({key: .[0].tool, value: length}) | from_entries' "$UNITY_COST_FILE" 2>/dev/null || echo '{}')
+fi
+
+# Gather warnings from session
+WARNINGS_FIRED="[]"
+if [ -f "$UNITY_WARNINGS_FILE" ]; then
+    WARNINGS_FIRED=$(sort "$UNITY_WARNINGS_FILE" | uniq -c | sort -rn | head -20 | awk '{$1=$1; print}' | jq -Rs 'split("\n") | map(select(length > 0))')
 fi
 
 # Session duration
@@ -90,6 +97,7 @@ jq -nc \
     --argjson tools "$TOOL_BREAKDOWN" \
     --argjson duration "$DURATION_SECS" \
     --argjson patterns "$PATTERNS" \
+    --argjson warnings "$WARNINGS_FIRED" \
     '{
         date: $date,
         branch: $branch,
@@ -101,7 +109,8 @@ jq -nc \
         shaders: $shader_count,
         tool_usage: $tools,
         duration_seconds: $duration,
-        patterns: $patterns
+        patterns: $patterns,
+        warnings_fired: $warnings
     }' >> "$PERSISTENT_LOG"
 
 echo "" >&2

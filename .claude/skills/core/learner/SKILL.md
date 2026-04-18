@@ -70,6 +70,8 @@ Append the learning to the project's `CLAUDE.md` file under a `## Project Learni
 
 Each entry is appended chronologically. Never overwrite or edit previous entries — they form a timeline of discoveries.
 
+Session data is automatically recorded to `.claude/state/learnings.jsonl` by the `auto-learn.sh` hook (strict profile). For pre-v1.3.0 projects, the file may be at `.claude/learnings.jsonl` instead.
+
 ## Pattern Categories
 
 Each learning and session is assigned one of five categories. These categories are used by `/unity-learn extract` for pattern analysis.
@@ -92,7 +94,7 @@ When reviewing accumulated learnings (via `/unity-learn extract`), patterns are 
 | **Medium** | 2 sessions | Emerging pattern — worth noting, may need one more data point |
 | **Low** | 1 session | Single observation — keep for context but don't act on yet |
 
-High-confidence patterns are candidates for `/unity-learn draft-skill` to generate new skills automatically.
+High-confidence patterns are candidates for `/unity-learn draft-skill` or `/unity-skillify <topic>` to generate new skills automatically. The `/unity-skillify` command provides a more complete workflow with cross-referencing against existing skills, automatic category detection, and optional `--install` flag for direct placement.
 
 ## Anti-Patterns — Do NOT Save
 
