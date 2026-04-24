@@ -16,7 +16,7 @@ A production-ready, plug-and-play system that gives Claude Code deep Unity exper
 
 Built for **solo indie mobile game developers**. Drop it into any Unity project and it works.
 
-### Why star this?
+### Why this works?
 
 - **Drop-in, zero-config** — one `install.sh` and Claude Code knows Unity inside out
 - **20 specialized agents** across haiku/sonnet/opus tiers with automatic complexity routing
