@@ -2,6 +2,55 @@
 
 All notable changes to everything-claude-unity will be documented in this file.
 
+## [1.4.0] — 2026-04-24
+
+### Added
+
+**Fact-Gate GateGuard (three-stage)**
+- `gateguard.sh` upgraded from simple Read-before-Edit to DENY → FORCE → ALLOW
+- First Edit/Write on a C# file now emits Unity-specific fact demands:
+  - GUID-based scene/prefab reference check via `.meta` file grep
+  - `[FormerlySerializedAs]` plan requirement when renaming serialized fields
+  - Public-API caller audit across the Assets tree
+  - Asmdef membership check for new files
+  - Verbatim quote of the user's instruction
+- Second attempt on the same file passes (trust-based unlock after agent presents facts)
+- Existing MVS counterpart suggestion preserved
+
+**Destructive Bash Gate**
+- New `bash-gate.sh` (PreToolUse Bash) with two-stage DENY → ALLOW flow
+- Unity-specific detection: `rm -rf Library/|Temp/|Logs/|obj/`, `.meta` deletion/mass-rename,
+  `ProjectSettings/*.asset` direct mutation, `Packages/manifest.json` wipes, `PlayerPrefs.DeleteAll`
+- Git safety: `git reset --hard`, `git clean -fdx`, `git push --force` (heightened message for protected branches)
+- DB safety: `DROP TABLE`, `TRUNCATE`, `DROP DATABASE`
+- Per-command-hash state so different destructive commands don't share unlock state
+
+**Atomic Instinct Learning System**
+- New `instinct-capture.sh` (PostToolUse, ~10ms) logs lightweight observations with path-tag classification (view/system/model/sobject/mono/editor/scene/prefab/asmdef)
+- New `instinct-distill.sh` (Stop, heuristic, no LLM) extracts atomic instincts from observations using three heuristics: warning-hotspot by path tag, tool-sequence affinity, hook-specific recurrence
+- Project-scoped by default (`.claude/state/instincts/project/<git-remote-hash>/`); global scope available via promotion
+- Confidence scoring 0.3–0.9 with evidence-count-based progression
+- New `/unity-instincts` command (status, list, evolve, promote, demote, export, import, clear)
+- New meta-skill `.claude/skills/core/unity-instincts/` documenting the pipeline
+
+**Session Management Commands**
+- `/unity-sessions` — list saved session snapshots with branch, phase, age, file counts
+- `/unity-session-save <label>` — snapshot the current session.json to `.claude/state/sessions/<label>.json`
+- `/unity-session-resume <label>` — restore a named snapshot with branch-mismatch warnings and TTL respect
+
+**Meta-Maintenance**
+- `/unity-skill-stocktake` — read-only audit of all skills/agents/commands for duplicates, stale globs, never-referenced entries, broken frontmatter, and stale code references
+
+**Hook Library**
+- `_lib.sh` honors pre-set `UNITY_HOOK_STATE_DIR` for testability in isolation
+- New helper `unity_project_hash()` — stable 12-char hash of git remote URL (or repo root fallback)
+- New state paths `UNITY_INSTINCTS_DIR` and `UNITY_OBSERVATIONS_FILE`
+
+### Hooks registered in settings.json
+- PreToolUse/Bash: `bash-gate.sh`
+- PostToolUse/all: `instinct-capture.sh`
+- Stop: `instinct-distill.sh`
+
 ## [1.3.0] — 2026-04-18
 
 ### Added
