@@ -2,6 +2,46 @@
 
 All notable changes to everything-claude-unity will be documented in this file.
 
+## [1.5.0] — 2026-04-24
+
+### Changed
+
+**Rules set re-synced from helm upstream**
+- `architecture.md` — new "NO GameContext / ServiceLocator" anti-pattern
+  section forbidding god-container injectables; new "Input System
+  Architecture" section that establishes the `InputView` adapter as the
+  sole owner of `PlayerControls`. Systems become input-agnostic and expose
+  `SetMoveInput(Vector2)`, `Jump()`, `Attack()`-style methods.
+- `performance.md` — new NON-NEGOTIABLE "Rendering & Draw Calls" section:
+  mandatory sprite atlasing for 2D, material sharing via `sharedMaterial` /
+  `MaterialPropertyBlock`, SRP Batcher + GPU Instancing guidance, UI canvas
+  split by update frequency, overdraw/culling rules, architect-owned
+  rendering strategy in the TDD, and a developer-action-items protocol for
+  assets agents cannot create (atlases, material presets, LOD groups, etc.).
+- `unity-specifics.md` — Input System section upgraded to NON-NEGOTIABLE.
+  Mandates the generated `PlayerControls` C# class, strict Enable/Disable
+  and subscribe/unsubscribe symmetry in OnEnable/OnDisable, continuous
+  input reading in Update, and explicit action-map switching order.
+- `serialization.md` — clarifying note on public field naming.
+
+**Skill and agent examples aligned with the new rules**
+- `skills/genre/platformer-2d` — controller exposes `SetMoveInput` /
+  `OnJumpPressed` / `OnJumpReleased`; removes `Input.GetButtonDown`,
+  `Input.GetButtonUp`, `Input.GetAxisRaw`.
+- `skills/systems/physics` — FixedUpdate-discipline example shows
+  `InputView` reading input in Update and forwarding to a System that
+  caches the value and applies forces in FixedUpdate.
+- `skills/gameplay/dialogue-system` — NPC interact trigger now uses an
+  `OnInteractPressed` callback driven by `InputView`.
+- `skills/gameplay/state-machine` — pause state exposes `OnPausePressed`
+  instead of reading `Input.GetKeyDown(KeyCode.Escape)`.
+- `skills/third-party/dotween` — material tween uses DOTween.To with a
+  cached `MaterialPropertyBlock` instead of `renderer.material.DOColor`
+  (which clones the material and breaks batching).
+- `agents/unity-network-dev` — Netcode owner movement example consumes a
+  cached Vector2 set by `InputView.SetMoveInput` rather than calling
+  `Input.GetAxis` inside Update.
+
 ## [1.4.1] — 2026-04-24
 
 ### Fixed
