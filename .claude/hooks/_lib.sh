@@ -65,7 +65,10 @@ _resolve_state_dir() {
         echo "/tmp/unity-claude-hooks"
     fi
 }
-UNITY_HOOK_STATE_DIR="$(_resolve_state_dir)"
+# Honor pre-set UNITY_HOOK_STATE_DIR (for tests and explicit overrides)
+if [ -z "${UNITY_HOOK_STATE_DIR:-}" ]; then
+    UNITY_HOOK_STATE_DIR="$(_resolve_state_dir)"
+fi
 mkdir -p "$UNITY_HOOK_STATE_DIR"
 
 UNITY_SESSION_FILE="${UNITY_HOOK_STATE_DIR}/session.json"
@@ -75,6 +78,21 @@ UNITY_COST_FILE="${UNITY_HOOK_STATE_DIR}/session-cost.jsonl"
 UNITY_LEARNING_FILE="${UNITY_HOOK_STATE_DIR}/learnings.jsonl"
 UNITY_WARNINGS_FILE="${UNITY_HOOK_STATE_DIR}/session-warnings.txt"
 UNITY_NOTIFY_EVENT_FILE="${UNITY_HOOK_STATE_DIR}/notify-event.json"
+
+# Instinct system paths (project-scoped, with global layer for promoted instincts)
+UNITY_INSTINCTS_DIR="${UNITY_HOOK_STATE_DIR}/instincts"
+UNITY_OBSERVATIONS_FILE="${UNITY_INSTINCTS_DIR}/observations.jsonl"
+
+# unity_project_hash — stable identifier for the current project
+# Prefers git remote URL (shared across clones); falls back to repo root path.
+unity_project_hash() {
+    local src
+    src="$(git config --get remote.origin.url 2>/dev/null)" || true
+    if [ -z "$src" ]; then
+        src="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    fi
+    echo "$src" | shasum | awk '{print $1}' | cut -c1-12
+}
 
 # --- Shared utilities ---
 
